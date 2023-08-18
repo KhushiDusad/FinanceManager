@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pyttsx3
 
 def main():
     st.title("Personal Finance Manager")
@@ -23,18 +26,50 @@ def main():
         new_expense = pd.DataFrame({"Category": [expense_category], "Amount": [expense_amount]})
         st.session_state.expense_df = pd.concat([st.session_state.expense_df, new_expense], ignore_index=True)
 
-    # Display Expense Log
-    st.header("Expense Log")
-    if not st.session_state.expense_df.empty:
-        st.dataframe(st.session_state.expense_df)
+    # Create dashboard layout with columns
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        # Display Expense Log
+        st.header("Expense Log")
+        if not st.session_state.expense_df.empty:
+            st.dataframe(st.session_state.expense_df)
+
+    with col2:
+        # Visualization: Expense Categories - Bar Chart
+        st.header("Expense Categories")
+        if not st.session_state.expense_df.empty:
+            fig, ax = plt.subplots(figsize=(8, 6))
+            sns.barplot(x="Amount", y="Category", data=st.session_state.expense_df, ax=ax)
+            plt.xticks(rotation=45)
+            st.pyplot(fig)
+
+    with col3:
+        # Visualization: Expense Categories - Pie Chart
+        st.header("Expenses Breakdown")
+        if not st.session_state.expense_df.empty:
+            category_amounts = st.session_state.expense_df.groupby("Category")["Amount"].sum()
+            fig, ax = plt.subplots()
+            ax.pie(category_amounts, labels=category_amounts.index, autopct="%1.1f%%", startangle=90)
+            ax.axis("equal")  # Equal aspect ratio ensures that pie is drawn as a circle.
+            st.pyplot(fig)
 
     # Calculate and display Total Balance
     total_expenses = st.session_state.expense_df["Amount"].sum()
     total_balance = income - total_expenses
+
+    # Display Total Balance section
     st.header("Total Balance")
     st.write(f"Total Income: ${income}")
     st.write(f"Total Expenses: ${total_expenses:.2f}")
     st.write(f"Total Balance: ${total_balance:.2f}")
+    
+    if st.button("Explain Expenses"):
+        engine = pyttsx3.init()
+        engine.say("Here are your expenses:")
+        for _, row in st.session_state.expense_df.iterrows():
+            engine.say(f"For {row['Category']}, you spent ${row['Amount']:.2f}")
+        engine.runAndWait()
 
 if __name__ == "__main__":
     main()
