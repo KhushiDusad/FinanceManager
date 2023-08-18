@@ -69,7 +69,7 @@ def main():
         text_to_speech = "Here are your expenses:\n"
         for _, row in st.session_state.expense_df.iterrows():
             text_to_speech += f"For {row['Category']}, you spent ${row['Amount']:.2f}\n"
-
+        text_to_speech += f"Your total expenses are ${total_expenses:.2f}"
         tts = gTTS(text_to_speech)
         tts.save("expenses.mp3")
 
