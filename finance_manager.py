@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pyttsx3
+from gtts import gTTS
 
 def main():
     st.title("Personal Finance Manager")
@@ -65,11 +66,14 @@ def main():
     st.write(f"Total Balance: ${total_balance:.2f}")
     
     if st.button("Explain Expenses"):
-        engine = pyttsx3.init()
-        engine.say("Here are your expenses:")
+        text_to_speech = "Here are your expenses:\n"
         for _, row in st.session_state.expense_df.iterrows():
-            engine.say(f"For {row['Category']}, you spent ${row['Amount']:.2f}")
-        engine.runAndWait()
+            text_to_speech += f"For {row['Category']}, you spent ${row['Amount']:.2f}\n"
+
+        tts = gTTS(text_to_speech)
+        tts.save("expenses.mp3")
+
+        st.audio("expenses.mp3")
 
 if __name__ == "__main__":
     main()
