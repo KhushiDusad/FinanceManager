@@ -45,21 +45,28 @@ def main():
     selected_operation = st.selectbox("Select operation:", ["Select the operation","Update", "Delete"])
 
     if selected_operation == "Update":
-        # Select a row to update
-        selected_row = st.selectbox("Select a row to update:", st.session_state.expense_df["Category"], key="update_selected_row")
-        new_amount = st.number_input("Enter updated amount:", value=0.0, step=1.0)
-        old_amount = st.session_state.expense_df.loc[
-            st.session_state.expense_df["Category"] == selected_row, "Amount"].values[0]
-        # Calculate the maximum allowable change in the expense amount
-        max_change = total_balance + old_amount
-        update_button = st.button("Update", key="update_button")
-        if update_button:
-          if expense_amount < 0:
-            st.warning("Expense amount cannot be negative.")
-          elif expense_amount > max_change:
-            st.warning("Updated amount cannot exceed the remaining balance after considering the old amount.")
+      # Select a row to update
+      selected_row = st.selectbox("Select a row to update:", st.session_state.expense_df["Category"], key="update_selected_row")
+      new_amount = st.number_input("Enter updated amount:", value=0.0, step=1.0)
+    
+      old_amount = st.session_state.expense_df.loc[
+          st.session_state.expense_df["Category"] == selected_row, "Amount"].values[0]
+    
+      # Calculate the maximum allowable change in the expense amount
+      max_change = total_balance + old_amount
+    
+      update_button = st.button("Update", key="update_button")
+    
+      if update_button:
+          if new_amount < 0:
+              st.warning("Expense amount cannot be negative.")
+          elif new_amount > max_change:
+              st.warning("Updated amount cannot exceed the remaining balance after considering the old amount.")
           else:
-            st.session_state.expense_df.loc[st.session_state.expense_df["Category"] == selected_row, "Amount"] = new_amount
+              st.session_state.expense_df.loc[st.session_state.expense_df["Category"] == selected_row, "Amount"] = new_amount
+              total_expenses = st.session_state.expense_df["Amount"].sum()
+              total_balance = income - total_expenses
+
 
     elif selected_operation == "Delete":
         # Select a row to delete
