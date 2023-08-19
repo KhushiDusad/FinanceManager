@@ -5,6 +5,7 @@ import seaborn as sns
 import pyttsx3
 from gtts import gTTS
 from io import BytesIO
+import base64
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Spacer, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
@@ -91,6 +92,12 @@ def create_pdf_report(expense_df, income, total_expenses, total_balance, bar_cha
     pdf_data = buffer.getvalue()
     with open("finance_report.pdf", "wb") as f:
         f.write(pdf_data)
+
+def get_download_link(file_path, link_text):
+    with open(file_path, "rb") as f:
+        pdf_data = f.read()
+    b64_pdf = base64.b64encode(pdf_data).decode("utf-8")
+    return f'<a href="data:application/pdf;base64,{b64_pdf}" download="{file_path}" target="_blank">{link_text}</a>'
 
 def main():
     st.title("Personal Finance Manager")
@@ -213,9 +220,10 @@ def main():
           st.audio("expenses.mp3")
     with colm2:
       if st.button("Generate PDF Report") and not st.session_state.expense_df.empty:
-        bar_chart_fig, pie_chart_fig = generate_visualizations(st.session_state.expense_df)
-        create_pdf_report(st.session_state.expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig)
-        st.success("PDF Report generated successfully!")
-        
+            bar_chart_fig, pie_chart_fig = generate_visualizations(st.session_state.expense_df)
+            create_pdf_report(st.session_state.expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig)
+            st.success("PDF Report generated successfully!")
+            st.markdown(get_download_link("finance_report.pdf", "Download PDF Report"), unsafe_allow_html=True)
+
 if __name__ == "__main__":
     main()
