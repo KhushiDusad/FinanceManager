@@ -2,8 +2,93 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pyttsx3
-from gtts import gTTS
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Spacer, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+
+def generate_visualizations(expense_df):
+    # Bar chart
+    bar_chart_fig, ax = plt.subplots(figsize=(8, 6))
+    sns.barplot(x="Amount", y="Category", data=expense_df, ax=ax)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Pie chart
+    pie_chart_fig, ax = plt.subplots(figsize=(8, 6))
+    category_amounts = expense_df.groupby("Category")["Amount"].sum()
+    ax.pie(category_amounts, labels=category_amounts.index, autopct="%1.1f%%", startangle=90)
+    ax.axis("equal")
+    plt.tight_layout()
+
+    return bar_chart_fig, pie_chart_fig
+
+def create_pdf_report(expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig):
+    # Create PDF document
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+
+    # Styles
+    styles = getSampleStyleSheet()
+
+    # Add title
+    title = Paragraph("Finance Report", styles['Title'])
+    content = [title, Spacer(1, 12)]
+
+    # Table for income, expenses, and balance
+    data = [
+        ["Total Income", f"${income:.2f}"],
+        ["Total Expenses", f"${total_expenses:.2f}"],
+        ["Total Balance", f"${total_balance:.2f}"],
+    ]
+    table = Table(data, colWidths=[200, 100])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), "grey"),
+        ("TEXTCOLOR", (0, 0), (-1, 0), (1, 1, 1)),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+    ]))
+    content.append(table)
+    content.append(Spacer(1, 24))
+
+    # Add bar chart
+    bar_chart_image = BytesIO()
+    bar_chart_fig.savefig(bar_chart_image, format="png")
+    bar_chart_img = Image(bar_chart_image, width=400, height=300)
+    content.append(bar_chart_img)
+    content.append(Spacer(1, 12))
+
+    # Add pie chart
+    pie_chart_image = BytesIO()
+    pie_chart_fig.savefig(pie_chart_image, format="png")
+    pie_chart_img = Image(pie_chart_image, width=400, height=300)
+    content.append(pie_chart_img)
+    content.append(Spacer(1, 12))
+
+    # Create Table object
+    table_data = [["Category", "Amount"]]
+    for _, row in expense_df.iterrows():
+        table_data.append([row["Category"], f"${row['Amount']:.2f}"])
+    table = Table(table_data)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), "grey"),
+        ("TEXTCOLOR", (0, 0), (-1, 0), (1, 1, 1)),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+        ("BACKGROUND", (0, 1), (-1, -1), (0.95, 0.95, 0.95)),
+        ("GRID", (0, 0), (-1, -1), 1, (0.75, 0.75, 0.75)),
+    ]))
+    content.append(table)
+
+    # Build PDF content
+    doc.build(content)
+
+    # Save PDF
+    pdf_data = buffer.getvalue()
+    with open("finance_report.pdf", "wb") as f:
+        f.write(pdf_data)
 
 def main():
     st.title("Personal Finance Manager")
@@ -111,17 +196,24 @@ def main():
     st.write(f"Total Income: ${income}")
     st.write(f"Total Expenses: ${total_expenses:.2f}")
     st.write(f"Total Balance: ${total_balance:.2f}")
-
-    explain_expenses = st.button("Explain Expenses", key="Explain_Expenses")
-    if explain_expenses:
-        text_to_speech = "Here are your expenses:\n"
-        for _, row in st.session_state.expense_df.iterrows():
+    
+    colm1, colm2= st.columns(2)
+    with colm1:
+      explain_expenses = st.button("Explain Expenses", key="Explain_Expenses")
+      if explain_expenses:
+          text_to_speech = "Here are your expenses:\n"
+          for _, row in st.session_state.expense_df.iterrows():
             text_to_speech += f"For {row['Category']}, you spent ${row['Amount']:.2f}\n"
-        text_to_speech += f"Your total expenses are ${total_expenses:.2f}"
-        tts = gTTS(text_to_speech)
-        tts.save("expenses.mp3")
+          text_to_speech += f"Your total expenses are ${total_expenses:.2f}"
+          tts = gTTS(text_to_speech)
+          tts.save("expenses.mp3")
 
-        st.audio("expenses.mp3")
-
+          st.audio("expenses.mp3")
+    with colm2:
+      if st.button("Generate PDF Report") and not st.session_state.expense_df.empty:
+        bar_chart_fig, pie_chart_fig = generate_visualizations(st.session_state.expense_df)
+        create_pdf_report(st.session_state.expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig)
+        st.success("PDF Report generated successfully!")
+        
 if __name__ == "__main__":
     main()
