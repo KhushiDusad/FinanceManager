@@ -10,6 +10,30 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Spacer, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 
+def export_data(expense_df, export_format):
+    if export_format == "CSV":
+        file_extension = "csv"
+        file_content_type = "text/csv"
+        file_name = "expenses.csv"
+        expense_df.to_csv(file_name, index=False)
+    elif export_format == "Excel":
+        file_extension = "xlsx"
+        file_content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        file_name = "expenses.xlsx"
+        expense_df.to_excel(file_name, index=False)
+    elif export_format == "JSON":
+        file_extension = "json"
+        file_content_type = "application/json"
+        file_name = "expenses.json"
+        expense_df.to_json(file_name, orient="records")
+
+    # Provide download link for the exported file
+    with open(file_name, "rb") as f:
+        file_data = f.read()
+    b64_file = base64.b64encode(file_data).decode("utf-8")
+    download_link = f'<a href="data:{file_content_type};base64,{b64_file}" download="{file_name}">Download {export_format} File</a>'
+    st.markdown(download_link, unsafe_allow_html=True)
+
 def generate_visualizations(expense_df):
     # Bar chart
     bar_chart_fig, ax = plt.subplots(figsize=(8, 6))
@@ -26,7 +50,7 @@ def generate_visualizations(expense_df):
 
     return bar_chart_fig, pie_chart_fig
 
-def create_pdf_report(expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig):
+def create_pdf_report(expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig, incurrency):
     # Create PDF document
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -40,9 +64,9 @@ def create_pdf_report(expense_df, income, total_expenses, total_balance, bar_cha
 
     # Table for income, expenses, and balance
     data = [
-        ["Total Income", f"${income:.2f}"],
-        ["Total Expenses", f"${total_expenses:.2f}"],
-        ["Total Balance", f"${total_balance:.2f}"],
+        ["Total Income", f"{incurrency} {income:.2f}"],
+        ["Total Expenses", f"{incurrency} {total_expenses:.2f}"],
+        ["Total Balance", f"{incurrency} {total_balance:.2f}"],
     ]
     table = Table(data, colWidths=[200, 100])
     table.setStyle(TableStyle([
@@ -72,7 +96,7 @@ def create_pdf_report(expense_df, income, total_expenses, total_balance, bar_cha
     # Create Table object
     table_data = [["Category", "Amount"]]
     for _, row in expense_df.iterrows():
-        table_data.append([row["Category"], f"${row['Amount']:.2f}"])
+        table_data.append([row["Category"], f"{incurrency}{row['Amount']:.2f}"])
     table = Table(table_data)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), "grey"),
@@ -102,9 +126,14 @@ def get_download_link(file_path, link_text):
 def main():
     st.title("Personal Finance Manager")
 
+    currency = ["USD", "EUR", "GBP", "JPY", "INR", "CAD"] 
     # Input for Income
     st.header("Income")
-    income = st.number_input("Enter your income:", value=0.0, step=1.0, key="income")
+    income, incurrency = st.columns(2)
+    with income:
+        income = st.number_input("Enter your income:", value=0.0, step=1.0, key="income")
+    with incurrency:
+        incurrency = st.selectbox("Select currency:", currency)
 
     if income < 0:
         st.warning("Income cannot be negative.")
@@ -202,18 +231,26 @@ def main():
 
     # Display Total Balance section
     st.header("Total Balance")
-    st.write(f"Total Income: ${income}")
-    st.write(f"Total Expenses: ${total_expenses:.2f}")
-    st.write(f"Total Balance: ${total_balance:.2f}")
+    st.write(f"Total Income: {incurrency} {income:.2f}")
+    st.write(f"Total Expenses: {incurrency} {total_expenses:.2f}")
+    st.write(f"Total Balance: {incurrency} {total_balance:.2f}")
     
+    export_format = st.selectbox("Select export format:", ["CSV", "Excel", "JSON"])
+    export_button = st.button("Export Data")
+    
+    if export_button:
+        if not st.session_state.expense_df.empty:
+            export_data(st.session_state.expense_df, export_format)
+            st.success(f"Data exported as {export_format} successfully!")
+
     colm1, colm2= st.columns(2)
     with colm1:
       explain_expenses = st.button("Explain Expenses", key="Explain_Expenses")
       if explain_expenses:
           text_to_speech = "Here are your expenses:\n"
           for _, row in st.session_state.expense_df.iterrows():
-            text_to_speech += f"For {row['Category']}, you spent ${row['Amount']:.2f}\n"
-          text_to_speech += f"Your total expenses are ${total_expenses:.2f}"
+            text_to_speech += f"For {row['Category']}, you spent {incurrency} {row['Amount']:.2f}\n"
+          text_to_speech += f"Your total expenses are {incurrency} {total_expenses:.2f}"
           tts = gTTS(text_to_speech)
           tts.save("expenses.mp3")
 
@@ -221,7 +258,7 @@ def main():
     with colm2:
       if st.button("Generate PDF Report") and not st.session_state.expense_df.empty:
             bar_chart_fig, pie_chart_fig = generate_visualizations(st.session_state.expense_df)
-            create_pdf_report(st.session_state.expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig)
+            create_pdf_report(st.session_state.expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig,incurrency)
             st.success("PDF Report generated successfully!")
             st.markdown(get_download_link("finance_report.pdf", "Download PDF Report"), unsafe_allow_html=True)
 
