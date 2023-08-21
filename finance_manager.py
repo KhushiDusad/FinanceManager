@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pyttsx3
+import plotly.express as px
 from gtts import gTTS
 from io import BytesIO
 import base64
@@ -34,11 +35,37 @@ def export_data(expense_df, export_format):
     download_link = f'<a href="data:{file_content_type};base64,{b64_file}" download="{file_name}">Download {export_format} File</a>'
     st.markdown(download_link, unsafe_allow_html=True)
 
-def generate_visualizations(expense_df):
-    # Bar chart
+def generate_visualizations(expense_df, income=0, total_expenses=0, total_balance=0):
+    # Bar Graph
+    data = pd.DataFrame({
+        "Category": ["Total Income", "Total Expenses", "Total Balance"],
+        "Amount": [income, total_expenses, total_balance]
+    })
+
+    # Create a horizontal bar chart using Plotly Express
+    finance_summary_fig = px.bar(data, x="Amount", y="Category", orientation="h",
+                 labels={"Amount": "Amount", "Category": ""},
+                 title="Finance Summary")
+
+    category_amounts = expense_df.groupby("Category")["Amount"].sum().reset_index()
+    expenses_breakdown_fig = px.pie(category_amounts, values="Amount", names="Category",
+                                     title="Expenses Breakdown", hole=0.3)
+    
+    return finance_summary_fig, expenses_breakdown_fig
+
+    return bar_chart_fig, pie_chart_fig
+
+def generate_pdfvisualizations(expense_df, income, total_expenses, total_balance):
+    # Bar Graph
     bar_chart_fig, ax = plt.subplots(figsize=(8, 6))
-    sns.barplot(x="Amount", y="Category", data=expense_df, ax=ax)
-    plt.xticks(rotation=45)
+    data = {
+        "Metrics": ["Total Income", "Total Expenses", "Total Balance"],
+        "Amount": [income, total_expenses, total_balance]
+    }
+    df = pd.DataFrame(data)
+    sns.barplot(x="Amount", y="Metrics", data=df, ax=ax)
+    plt.xticks(rotation=0)
+    plt.title("Finance Summary")
     plt.tight_layout()
 
     # Pie chart
@@ -46,6 +73,7 @@ def generate_visualizations(expense_df):
     category_amounts = expense_df.groupby("Category")["Amount"].sum()
     ax.pie(category_amounts, labels=category_amounts.index, autopct="%1.1f%%", startangle=90)
     ax.axis("equal")
+    plt.title("Expenses Breakdown")
     plt.tight_layout()
 
     return bar_chart_fig, pie_chart_fig
@@ -200,9 +228,9 @@ def main():
 
     total_expenses = st.session_state.expense_df["Amount"].sum()
     total_balance = income - total_expenses
-
+    
     # Create dashboard layout with columns
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     with col1:
         # Display Expense Log
@@ -211,23 +239,19 @@ def main():
             st.text(st.session_state.expense_df.to_string(index=False))
 
     with col2:
-        # Visualization: Expense Categories - Bar Chart
-        st.header("Expense Categories")
-        if not st.session_state.expense_df.empty:
-            fig, ax = plt.subplots(figsize=(8, 6))
-            sns.barplot(x="Amount", y="Category", data=st.session_state.expense_df, ax=ax)
-            plt.xticks(rotation=45)
-            st.pyplot(fig)
-
-    with col3:
-        # Visualization: Expense Categories - Pie Chart
+        # Visualization: Expenses Breakdown - Pie Chart
         st.header("Expenses Breakdown")
         if not st.session_state.expense_df.empty:
-            category_amounts = st.session_state.expense_df.groupby("Category")["Amount"].sum()
-            fig, ax = plt.subplots()
-            ax.pie(category_amounts, labels=category_amounts.index, autopct="%1.1f%%", startangle=90)
-            ax.axis("equal")  # Equal aspect ratio ensures that pie is drawn as a circle.
-            st.pyplot(fig)
+            _, expenses_breakdown_fig = generate_visualizations(st.session_state.expense_df)
+            st.plotly_chart(expenses_breakdown_fig)
+        
+
+    # Visualization: Finance Summary - Bar Chart
+    st.header("Finance Summary")
+    if not st.session_state.expense_df.empty:
+        finance_summary_fig, _ = generate_visualizations(st.session_state.expense_df, income, total_expenses, total_balance)
+        st.plotly_chart(finance_summary_fig)
+        
 
     # Display Total Balance section
     st.header("Total Balance")
@@ -257,7 +281,7 @@ def main():
           st.audio("expenses.mp3")
     with colm2:
       if st.button("Generate PDF Report") and not st.session_state.expense_df.empty:
-            bar_chart_fig, pie_chart_fig = generate_visualizations(st.session_state.expense_df)
+            bar_chart_fig, pie_chart_fig = generate_pdfvisualizations(st.session_state.expense_df, income, total_expenses, total_balance)
             create_pdf_report(st.session_state.expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig,incurrency)
             st.success("PDF Report generated successfully!")
             st.markdown(get_download_link("finance_report.pdf", "Download PDF Report"), unsafe_allow_html=True)
