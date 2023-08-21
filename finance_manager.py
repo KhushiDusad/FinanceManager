@@ -185,10 +185,14 @@ def main():
         if expense_amount < 0:
             st.warning("Expense amount cannot be negative.")
         elif expense_amount > total_balance:
-            st.warning("Expense amount cannot be greater than total balance.")
+            st.warning("Expense amount cannot exceed total balance.")
         else:
-            new_expense = pd.DataFrame({"Category": [expense_category], "Amount": [expense_amount]})
-            st.session_state.expense_df = pd.concat([st.session_state.expense_df, new_expense], ignore_index=True)
+            # Check if the category already exists in the DataFrame
+            if expense_category in st.session_state.expense_df["Category"].values:
+                st.warning("Expense category already exists. Consider updating the existing entry.")
+            else:
+                new_expense = pd.DataFrame({"Category": [expense_category], "Amount": [expense_amount]})
+                st.session_state.expense_df = pd.concat([st.session_state.expense_df, new_expense], ignore_index=True)
 
     st.subheader("Manage Expenses")
 
