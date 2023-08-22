@@ -53,8 +53,6 @@ def generate_visualizations(expense_df, income=0, total_expenses=0, total_balanc
     
     return finance_summary_fig, expenses_breakdown_fig
 
-    return bar_chart_fig, pie_chart_fig
-
 def generate_pdfvisualizations(expense_df, income, total_expenses, total_balance):
     # Bar Graph
     bar_chart_fig, ax = plt.subplots(figsize=(8, 6))
