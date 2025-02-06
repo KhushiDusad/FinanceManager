@@ -43,15 +43,15 @@ def generate_visualizations(expense_df, income=0, total_expenses=0, total_balanc
     })
 
     # Create a horizontal bar chart using Plotly Express
-    finance_summary_fig = px.bar(data, x="Amount", y="Category", orientation="h",
+    expense_summary_fig = px.bar(data, x="Amount", y="Category", orientation="h",
                  labels={"Amount": "Amount", "Category": ""},
-                 title="Finance Summary")
+                 title="Expense Summary")
 
     category_amounts = expense_df.groupby("Category")["Amount"].sum().reset_index()
     expenses_breakdown_fig = px.pie(category_amounts, values="Amount", names="Category",
                                      title="Expenses Breakdown", hole=0.3)
     
-    return finance_summary_fig, expenses_breakdown_fig
+    return expense_summary_fig, expenses_breakdown_fig
 
 def generate_pdfvisualizations(expense_df, income, total_expenses, total_balance):
     # Bar Graph
@@ -63,7 +63,7 @@ def generate_pdfvisualizations(expense_df, income, total_expenses, total_balance
     df = pd.DataFrame(data)
     sns.barplot(x="Amount", y="Metrics", data=df, ax=ax)
     plt.xticks(rotation=0)
-    plt.title("Finance Summary")
+    plt.title("Expense Summary")
     plt.tight_layout()
 
     # Pie chart
@@ -85,7 +85,7 @@ def create_pdf_report(expense_df, income, total_expenses, total_balance, bar_cha
     styles = getSampleStyleSheet()
 
     # Add title
-    title = Paragraph("Finance Report", styles['Title'])
+    title = Paragraph("Expense Report", styles['Title'])
     content = [title, Spacer(1, 12)]
 
     # Table for income, expenses, and balance
@@ -140,7 +140,7 @@ def create_pdf_report(expense_df, income, total_expenses, total_balance, bar_cha
 
     # Save PDF
     pdf_data = buffer.getvalue()
-    with open("finance_report.pdf", "wb") as f:
+    with open("expense_report.pdf", "wb") as f:
         f.write(pdf_data)
 
 def get_download_link(file_path, link_text):
@@ -151,7 +151,7 @@ def get_download_link(file_path, link_text):
 
 
 def main():
-    st.title("Personal Finance Manager")
+    st.title("Personal Expense Manager")
 
     currency = ["USD", "EUR", "GBP", "JPY", "INR", "KRW"]
 
@@ -224,11 +224,11 @@ def main():
             _, expenses_breakdown_fig = generate_visualizations(st.session_state.expense_df)
             st.plotly_chart(expenses_breakdown_fig)
 
-        # Visualization: Finance Summary - Bar Chart
-    st.header("Finance Summary")
+        # Visualization: Expense Summary - Bar Chart
+    st.header("Expense Summary")
     if not st.session_state.expense_df.empty:
-        finance_summary_fig, _ = generate_visualizations(st.session_state.expense_df, income, total_expenses, total_balance)
-        st.plotly_chart(finance_summary_fig)
+        expense_summary_fig, _ = generate_visualizations(st.session_state.expense_df, income, total_expenses, total_balance)
+        st.plotly_chart(expense_summary_fig)
     
     # Expense Trends Over Time
     st.header("Expense Trends Over Time")
@@ -272,7 +272,7 @@ def main():
             bar_chart_fig, pie_chart_fig = generate_pdfvisualizations(st.session_state.expense_df, income, total_expenses, total_balance)
             create_pdf_report(st.session_state.expense_df, income, total_expenses, total_balance, bar_chart_fig, pie_chart_fig, incurrency)
             st.success("PDF Report generated successfully!")
-            st.markdown(get_download_link("finance_report.pdf", "Download PDF Report"), unsafe_allow_html=True)
+            st.markdown(get_download_link("expense_report.pdf", "Download PDF Report"), unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
